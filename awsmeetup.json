@@ -1,484 +1,656 @@
 {
-   "AWSTemplateFormatVersion" : "2010-09-09",
-   "Description" : "Seattle AWS Architects & Engineers - AWS Study Group Stack",
-   "Parameters" : {
-	 "ParamKeyName": {
-   		 "Description": "Instance key name",
-  		  "Type": "String"
- 		 },
-	 "ParamAvailabilityZone1": {
-   		 "Description": "Instance key name",
-  		  "Type": "String",
-		  "Default": "us-west-2a"
- 		 },
-	 "ParamAvailabilityZone2": {
-   		 "Description": "Instance key name",
-  		  "Type": "String",
-                  "Default": "us-west-2b"
- 		 },
-	 "ParamSshCidr": {
-   		 "Description": "SSH In CIDR",
-  		  "Type": "String",
-                  "Default": "70.199.140.28/32"
- 		 }
-
-
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Seattle AWS Architects & Engineers - AWS Study Group Stack",
+  "Parameters": {
+    "ParamKeyName": {
+      "Description": "Name of an existing EC2 KeyPair",
+      "Type": "AWS::EC2::KeyPair::KeyName",
+      "MinLength": "1",
+      "MaxLength": "25",
+      "AllowedPattern": "[\\x20-\\x7E]*",
+      "ConstraintDescription": "Can contain only ASCII characters."
     },
-
-   "Mappings" : {
-     "AwsNatAmiMap" : {
-       "us-east-1"      : { "AMI" : "ami-54cf5c3d" },
-       "us-west-2"      : { "AMI" : "ami-8e27adbe" },
-       "us-west-1"      : { "AMI" : "ami-b63210f3" },
-       "eu-west-1"      : { "AMI" : "ami-3c5f5748" },
-       "ap-southeast-1" : { "AMI" : "ami-ba7538e8" },
-       "ap-southeast-2" : { "AMI" : "ami-b6df4e8c" },
-       "ap-northeast-1" : { "AMI" : "ami-5d7dfa5c" },
-       "sa-east-1"      : { "AMI" : "ami-89c81394" }
-     }
+    "ParamAvailabilityZone1": {
+      "Description": "Instance key name",
+      "Type": "String",
+      "Default": "us-west-2a"
     },
-
-   "Resources" : {
-
-      "AwsMeetupVpc" : {
-         "Type" : "AWS::EC2::VPC",
-         "Properties" : {
-            "CidrBlock" : "10.0.0.0/16",
-            "EnableDnsSupport" : "true",
-            "EnableDnsHostnames" : "true",
-            "InstanceTenancy" : "default",
-            "Tags" : [ {"Key" : "Name", "Value" : "Seattle AWS Meetup VPC"} ]
-         }
+    "ParamAvailabilityZone2": {
+      "Description": "Instance key name",
+      "Type": "String",
+      "Default": "us-west-2b"
+    },
+    "ParamSshCidr": {
+      "Description": "SSH In CIDR",
+      "Type": "String",
+      "Default": "70.199.140.28/32"
+    },
+    "LogBucketName": {
+      "Description": "The name of the S3 bucket to create for log shipping",
+      "Type": "String",
+      "Default": "seattle-aws-logs"
+    }
+  },
+  "Mappings": {
+    "AwsNatAmiMap": {
+      "us-east-1": {
+        "AMI": "ami-54cf5c3d"
       },
-
-      "InternetGateway" : {
-         "Type" : "AWS::EC2::InternetGateway",
-         "Properties" : {
-            "Tags" : [ {"Key" : "Name", "Value" : "Seattle AWS Meetup Internet Gateway"}]
-         }
+      "us-west-2": {
+        "AMI": "ami-8e27adbe"
       },
-
-      "AttachGateway" : {
-   		"Type" : "AWS::EC2::VPCGatewayAttachment",
-   		"Properties" : {
-      		"VpcId" : { "Ref" : "AwsMeetupVpc" },
-      		"InternetGatewayId" : { "Ref" : "InternetGateway" }
-	  }
+      "us-west-1": {
+        "AMI": "ami-b63210f3"
       },
-     "SubnetPublic1" : {
-         "Type" : "AWS::EC2::Subnet",
-         "Properties" : {
-            "VpcId" : { "Ref" : "AwsMeetupVpc" },
-            "CidrBlock" : "10.0.3.0/24",
-            "AvailabilityZone" : {"Ref" : "ParamAvailabilityZone1"},
-            "Tags" : [ { "Key" : "Name", "Value" : "Seattle AWS Meetup Public Subnet 1" } ]
-         }
+      "eu-west-1": {
+        "AMI": "ami-3c5f5748"
       },
-
-      "SubnetPublic2" : {
-         "Type" : "AWS::EC2::Subnet",
-         "Properties" : {
-            "VpcId" : { "Ref" : "AwsMeetupVpc" },
-            "CidrBlock" : "10.0.4.0/24",
-            "AvailabilityZone" : {"Ref" : "ParamAvailabilityZone2"},
-            "Tags" : [ { "Key" : "Name", "Value" : "Seattle AWS Meetup Public Subnet 2" } ]
-         }
+      "ap-southeast-1": {
+        "AMI": "ami-ba7538e8"
       },
-
-      "PublicRouteTable" : {
-         "Type" : "AWS::EC2::RouteTable",
-         "Properties" : {
-            "VpcId" : { "Ref" : "AwsMeetupVpc" },
-            "Tags" : [ { "Key" : "Name", "Value" : "Seattle AWS Meetup Public Route Table" } ]
-         }
+      "ap-southeast-2": {
+        "AMI": "ami-b6df4e8c"
       },
-
-      "PublicRoute" : {
-         "Type" : "AWS::EC2::Route",
-         "DependsOn" : "InternetGateway",
-         "Properties" : {
-            "RouteTableId" : { "Ref" : "PublicRouteTable" },
-            "DestinationCidrBlock" : "0.0.0.0/0",
-            "GatewayId" : { "Ref" : "InternetGateway" }
-         }
+      "ap-northeast-1": {
+        "AMI": "ami-5d7dfa5c"
       },
-
-      "PublicRouteTableAssociation1" : {
-         "Type" : "AWS::EC2::SubnetRouteTableAssociation",
-         "Properties" : {
-            "SubnetId" : { "Ref" : "SubnetPublic1" },
-            "RouteTableId" : { "Ref" : "PublicRouteTable" }
-         }
-      },
-
-      "PublicRouteTableAssociation2" : {
-         "Type" : "AWS::EC2::SubnetRouteTableAssociation",
-         "Properties" : {
-            "SubnetId" : { "Ref" : "SubnetPublic2" },
-            "RouteTableId" : { "Ref" : "PublicRouteTable" }
-         }
-      },
-
-      "SubnetPrivate1" : {
-         "Type" : "AWS::EC2::Subnet",
-         "Properties" : {
-            "VpcId" : { "Ref" : "AwsMeetupVpc" },
-            "CidrBlock" : "10.0.1.0/24",
-            "AvailabilityZone" : {"Ref" : "ParamAvailabilityZone1"},
-            "Tags" : [ { "Key" : "Name", "Value" : "Seattle AWS Meetup Private Subnet 1" } ]
-         }
-      },
-
-      "SubnetPrivate2" : {
-         "Type" : "AWS::EC2::Subnet",
-         "Properties" : {
-            "VpcId" : { "Ref" : "AwsMeetupVpc" },
-            "CidrBlock" : "10.0.2.0/24",
-            "AvailabilityZone" : {"Ref" : "ParamAvailabilityZone2"},
-            "Tags" : [ { "Key" : "Name", "Value" : "Seattle AWS Meetup Private Subnet 2" } ]
-         }
-      },
-
-      "PrivateRouteTable" : {
-         "Type" : "AWS::EC2::RouteTable",
-         "Properties" : {
-            "VpcId" : { "Ref" : "AwsMeetupVpc" },
-	    "Tags" : [ { "Key" : "Name", "Value" : "Seattle AWS Meetup Private Route Table" } ]
-         }
-      },
-
-      "PrivateRoute" : {
-         "Type" : "AWS::EC2::Route",
-         "DependsOn" : "InternetGateway",
-          "Properties" : {
-            "RouteTableId" : { "Ref" : "PrivateRouteTable" },
-            "DestinationCidrBlock" : "0.0.0.0/0",
-            "InstanceId" : { "Ref" : "NatInstance" }
-         }
-
-      },
-
-      "PrivateRouteTableAssociation1" : {
-         "Type" : "AWS::EC2::SubnetRouteTableAssociation",
-         "Properties" : {
-            "SubnetId" : { "Ref" : "SubnetPrivate1" },
-            "RouteTableId" : { "Ref" : "PrivateRouteTable" }
-         }
-      },
-
-      "PrivateRouteTableAssociation2" : {
-         "Type" : "AWS::EC2::SubnetRouteTableAssociation",
-         "Properties" : {
-            "SubnetId" : { "Ref" : "SubnetPrivate2" },
-            "RouteTableId" : { "Ref" : "PrivateRouteTable" }
-         }
-      },
-
-      "WebServerSecurityGroup" : {
-         "Type" : "AWS::EC2::SecurityGroup",
-         "Properties" : {
-            "GroupDescription" : "Seattle AWS Meetup Web Server Security Group",
-            "VpcId" : {"Ref" : "AwsMeetupVpc"},
-            "SecurityGroupIngress" : [{
-                  "IpProtocol" : "tcp",
-                  "FromPort" : "22",
-                  "ToPort" : "22",
-                  "SourceSecurityGroupId" : { "Ref" : "BastionSecurityGroup" }
-               },
-	       {  "IpProtocol" : "tcp",
-                  "FromPort" : "80",
-                  "ToPort" : "80",
-                  "SourceSecurityGroupId" : { "Ref" : "ElbSecurityGroup" }},
-	       {  "IpProtocol" : "tcp",
-                  "FromPort" : "1024",
-                  "ToPort" : "65535",
-                  "SourceSecurityGroupId" : { "Ref" : "NatSecurityGroup" }}
-		],
-		"Tags" : [ { "Key" : "Name", "Value" : "Seattle AWS Meetup Web Server Security Group" } ]
-         }
-       },
-
-
-      "ElbSecurityGroup" : {
-         "Type" : "AWS::EC2::SecurityGroup",
-         "Properties" : {
-            "GroupDescription" : "Seattle AWS Meetup ELB Security Group",
-            "VpcId" : {"Ref" : "AwsMeetupVpc"},
-            "SecurityGroupIngress" : [
-	       {  "IpProtocol" : "tcp",
-                  "FromPort" : "80",
-                  "ToPort" : "80",
-                  "CidrIp" : "0.0.0.0/0"},
-	       {  "IpProtocol" : "tcp",
-                  "FromPort" : "1024",
-                  "ToPort" : "65355",
-                  "CidrIp" : "10.0.0.0/16"}
-		],
-		"Tags" : [ { "Key" : "Name", "Value" : "Seattle AWS Meetup ELB Security Group" } ]
-         }
-       },
-
-       "BastionSecurityGroup" : {
-           "Type" : "AWS::EC2::SecurityGroup",
-           "Properties" : {
-            "GroupDescription" : "Seattle AWS Meetup Bastion Security Group",
-            "VpcId" : {"Ref" : "AwsMeetupVpc"},
-            "SecurityGroupIngress" : [{
-                  "IpProtocol" : "tcp",
-                  "FromPort" : "22",
-                  "ToPort" : "22",
-                  "CidrIp" : {"Ref" : "ParamSshCidr"}
-             }],
-	     "Tags" : [ { "Key" : "Name", "Value" : "Seattle AWS Meetup Bastion Security Group" } ]
-           }
-      },
-
-    "NatSecurityGroup" : {
-      "Type" : "AWS::EC2::SecurityGroup",
-      "Properties" : {
-        "GroupDescription" : "Rules for allowing access to HA Nodes",
-        "VpcId" : { "Ref" : "AwsMeetupVpc" },
-        "SecurityGroupIngress" : [
-           { "IpProtocol" : "tcp", "FromPort" : "22",  "ToPort" : "22",  "CidrIp" : "10.0.0.0/16" } ,
-           { "IpProtocol" : "-1", "FromPort" : "0",  "ToPort" : "65535",  "CidrIp" : "10.0.0.0/16"} ],
-        "SecurityGroupEgress" : [
-           { "IpProtocol" : "-1", "FromPort" : "0", "ToPort" : "65535", "CidrIp" : "0.0.0.0/0" } ],
-	"Tags" : [ { "Key" : "Name", "Value" : "Seattle AWS Meetup Nat Security Group" } ]
+      "sa-east-1": {
+        "AMI": "ami-89c81394"
+      }
+    }
+  },
+  "Resources": {
+    "AwsMeetupVpc": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": "10.0.0.0/16",
+        "EnableDnsSupport": "true",
+        "EnableDnsHostnames": "true",
+        "InstanceTenancy": "default",
+        "Tags": [{
+          "Key": "Name",
+          "Value": "Seattle AWS Meetup VPC"
+        }]
       }
     },
-
-    "NatRole": {
-       "Type": "AWS::IAM::Role",
-       "Properties": {
-          "AssumeRolePolicyDocument": {
-             "Statement": [ {
-                "Effect": "Allow",
-                "Principal": {
-                   "Service": [ "ec2.amazonaws.com" ]
-                },
-                "Action": [ "sts:AssumeRole" ]
-             } ]
-          },
-          "Path": "/",
-          "Policies": [ {
-             "PolicyName": "NAT_Takeover",
-             "PolicyDocument": {
-                "Statement": [ {
-                   "Effect": "Allow",
-                   "Action": [
-                        "ec2:DescribeInstances",
-			"ec2:DescribeRouteTables",
-                        "ec2:CreateRoute",
-                        "ec2:ReplaceRoute",
-                        "ec2:StartInstances",
-                        "ec2:StopInstances"
-                   ],
-                   "Resource": "*"
-                } ]
-             }
-             } ]
-          }
-    },
-
-    "NatRoleProfile": {
-       "Type": "AWS::IAM::InstanceProfile",
-       "Properties": {
-          "Path": "/",
-          "Roles": [ {
-             "Ref": "NatRole"
-          } ]
-       }
-    },
-
-    "NatEip" : {
-      "Type" : "AWS::EC2::EIP",
-      "Properties" : {
-        "Domain" : "vpc",
-        "InstanceId" : { "Ref" : "NatInstance" }
+    "InternetGateway": {
+      "Type": "AWS::EC2::InternetGateway",
+      "Properties": {
+        "Tags": [{
+          "Key": "Name",
+          "Value": "Seattle AWS Meetup Internet Gateway"
+        }]
       }
     },
-
-    "NatInstance" : {
-      "Type" : "AWS::EC2::Instance",
-      "Properties" : {
-        "InstanceType" : "m1.small" ,
-        "KeyName" : { "Ref" : "ParamKeyName" },
-	"IamInstanceProfile" : { "Ref" : "NatRoleProfile" },
-        "SubnetId" : { "Ref" : "SubnetPublic1" },
-        "SourceDestCheck" : "false",
-        "ImageId" : { "Fn::FindInMap" : [ "AwsNatAmiMap", { "Ref" : "AWS::Region" }, "AMI" ]},
-        "SecurityGroupIds" : [{ "Ref" : "NatSecurityGroup" }],
-        "Tags" : [
-          { "Key" : "Name", "Value" : "Seattle AWS Meetup NAT Instance" }
-        ],
-        "UserData"       : { "Fn::Base64" : { "Fn::Join" : ["", [
-          "#!/bin/bash -v\n",
-	  "yum update -y aws*\n",
-	  ". /etc/profile.d/aws-apitools-common.sh\n",
-          "# Configure iptables\n",
-	  "/sbin/iptables -t nat -A POSTROUTING -o eth0 -s 0.0.0.0/0 -j MASQUERADE\n",
-	  "/sbin/iptables-save > /etc/sysconfig/iptables\n",
-          "# Configure ip forwarding and redirects\n",
-          "echo 1 >  /proc/sys/net/ipv4/ip_forward && echo 0 >  /proc/sys/net/ipv4/conf/eth0/send_redirects\n",
-	  "mkdir -p /etc/sysctl.d/\n",
-	  "cat <<EOF > /etc/sysctl.d/nat.conf\n",
-	  "net.ipv4.ip_forward = 1\n",
-	  "net.ipv4.conf.eth0.send_redirects = 0\n",
-	  "EOF\n"
-        ]]}}
-      }
-    },
- 
-      "LaunchConfig" : {
-        "Type" : "AWS::AutoScaling::LaunchConfiguration",
-        "Properties" : {
-          "KeyName" : { "Ref" : "ParamKeyName" },
-          "ImageId" : "ami-e7527ed7",
-          "SecurityGroups" : [ { "Ref" : "WebServerSecurityGroup" } ],
-          "InstanceType" : "t2.micro",
-          "EbsOptimized" : "false",
-          "UserData" :  { "Fn::Base64": { "Fn::Join": [ "", [
-             "#!/bin/bash -e\n",
-             " yum install httpd \n",
-             " chkconfig httpd on \n",
-             " /etc/init.d/httpd start \n"
-          ] ] } }
-        } 
-    },
-
-    "WebAutoScalingGroup" : {
-       "Type" : "AWS::AutoScaling::AutoScalingGroup",
-       "Properties" : {
-     		"AvailabilityZones" : [{"Ref" : "ParamAvailabilityZone1"}, {"Ref" : "ParamAvailabilityZone2"}],
-	        "VPCZoneIdentifier" : [{ "Ref" : "SubnetPrivate1" }, { "Ref" : "SubnetPrivate2" }],
-     		"LaunchConfigurationName" : { "Ref" : "LaunchConfig" },
-     		"MinSize" : "2",
-     		"MaxSize" : "2",
-     		"LoadBalancerNames" : [ { "Ref" : "ElasticLoadBalancer" } ],
-     		"MetricsCollection": [{
-           		"Granularity": "1Minute",
-           		"Metrics": [
-              			"GroupMinSize",
-              			"GroupMaxSize"
-           		]
-        	}],
-		"Tags" : [{ "Key" : "Name", "Value" : "Seattle AWS Meetup Autoscaling Instance", "PropagateAtLaunch" : "true" }]
-	
-  	   }
-           
+    "AttachGateway": {
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+      "Properties": {
+        "VpcId": {
+          "Ref": "AwsMeetupVpc"
         },
-
-
-	"ElbLogBucket" :{
-   		"Type" : "AWS::S3::Bucket",
-   		"Properties" : {
-      			"BucketName" : "seattle-aws-logs"
-		}
-   	},     
-
-	"ElbLogBucketPolicy" : {
- 	   "Type" : "AWS::S3::BucketPolicy",
-           "Properties" : {
-	      "Bucket" : { "Ref" : "ElbLogBucket" },
-	      "PolicyDocument" :  {
-		 "Id" : "ElbLogBucketPolicy",
-		 "Version" : "2012-10-17",
-		 "Statement": [
-		    {
-		      "Sid": "uses-generic-ELB-arn",
-		      "Action": [
-			"s3:PutObject"
-		      ],
-		      "Effect": "Allow",
-		      "Resource": { 
-	                                "Fn::Join" : 
-					["", 
-						[
-						  "arn:aws:s3:::seattle-aws-logs/AWSLogs/", 
-						  {"Ref" : "AWS::AccountId"}, 
-                                		  "/*"
-						]
-	                                ]
-				},
-		      "Principal": {
-			"AWS": [
-			  "797873946194"
-			]
-		      }
-		    }
-		  ]
-      		}
-	      }
-	   },
-
-	"ElasticLoadBalancer" : {
-	 "Type" : "AWS::ElasticLoadBalancing::LoadBalancer",
-	 "Properties" : {
-           "AccessLoggingPolicy" : 
-		{
-		  "EmitInterval" : 5,
-		  "Enabled" : "true",
-		  "S3BucketName" : {"Ref" : "ElbLogBucket"}
-		},
-	   "Subnets" : [{ "Ref" : "SubnetPublic1" }, { "Ref" : "SubnetPublic2" }],
-           "SecurityGroups" : [{"Ref" : "ElbSecurityGroup"}],
-	   "Listeners": [{
-	     "LoadBalancerPort": "80",
-	     "InstancePort": "80",
-	     "Protocol": "HTTP"
-	   }],
-	   "HealthCheck": {
-	     "Target": "HTTP:80/",
-	     "HealthyThreshold": "3",
-	     "UnhealthyThreshold": "5",
-	     "Interval": "30",
-	     "Timeout": "5"
-	   },
-	   "ConnectionDrainingPolicy": {
-	     "Enabled" : "true",
-	     "Timeout" : "60"
-	   },
-           "Tags" : [ {"Key" : "Name", "Value" : "Seattle AWS Meetup ELB"}]
-	 }
-	},
-
-        "BastionInstance" : {
-         "Type" : "AWS::EC2::Instance",
-         "Properties" : {
-            "ImageId" : "ami-e7527ed7",
-            "KeyName" : { "Ref" : "ParamKeyName" },
-            "InstanceType" : "t2.micro",
-            "SecurityGroupIds" : [ { "Ref" : "BastionSecurityGroup" } ],
-            "SubnetId": {"Ref" : "SubnetPublic1"},
-            "Tags" : [ {"Key" : "Name", "Value" : "Seattle AWS Meetup Bastion Instance"}]
-         }
-      },
-
-      "BastionEIP" : {
-	   "Type" : "AWS::EC2::EIP",
-	   "Properties" : {
-	      "InstanceId" : {"Ref" : "BastionInstance"}
-	   }
-      }
-          
-   },
-
-   "Outputs" : {
-  	"VPC" : {
-    	    "Description": "VPC",  
- 	    "Value" : { "Ref" : "AwsMeetupVpc" }
-         },
-        "BastionInstance" : {
-             "Description": "Bastion Instance ID",  
-             "Value" : { "Ref" : "BastionInstance" }
-         },
-        "BastionEIP" : {
-             "Description": "Bastion EIP",  
-             "Value" : { "Ref" : "BastionEIP" }
-         },
-        "InternetGateway" : {
-             "Description": "Internet Gateway",  
-             "Value" : { "Ref" : "InternetGateway" }
+        "InternetGatewayId": {
+          "Ref": "InternetGateway"
         }
+      }
+    },
+    "SubnetPublic1": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "AwsMeetupVpc"
+        },
+        "CidrBlock": "10.0.3.0/24",
+        "AvailabilityZone": {
+          "Ref": "ParamAvailabilityZone1"
+        },
+        "Tags": [{
+          "Key": "Name",
+          "Value": "Seattle AWS Meetup Public Subnet 1"
+        }]
+      }
+    },
+    "SubnetPublic2": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "AwsMeetupVpc"
+        },
+        "CidrBlock": "10.0.4.0/24",
+        "AvailabilityZone": {
+          "Ref": "ParamAvailabilityZone2"
+        },
+        "Tags": [{
+          "Key": "Name",
+          "Value": "Seattle AWS Meetup Public Subnet 2"
+        }]
+      }
+    },
+    "PublicRouteTable": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "AwsMeetupVpc"
+        },
+        "Tags": [{
+          "Key": "Name",
+          "Value": "Seattle AWS Meetup Public Route Table"
+        }]
+      }
+    },
+    "PublicRoute": {
+      "Type": "AWS::EC2::Route",
+      "DependsOn": "InternetGateway",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "PublicRouteTable"
+        },
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "InternetGateway"
+        }
+      }
+    },
+    "PublicRouteTableAssociation1": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "SubnetPublic1"
+        },
+        "RouteTableId": {
+          "Ref": "PublicRouteTable"
+        }
+      }
+    },
+    "PublicRouteTableAssociation2": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "SubnetPublic2"
+        },
+        "RouteTableId": {
+          "Ref": "PublicRouteTable"
+        }
+      }
+    },
+    "SubnetPrivate1": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "AwsMeetupVpc"
+        },
+        "CidrBlock": "10.0.1.0/24",
+        "AvailabilityZone": {
+          "Ref": "ParamAvailabilityZone1"
+        },
+        "Tags": [{
+          "Key": "Name",
+          "Value": "Seattle AWS Meetup Private Subnet 1"
+        }]
+      }
+    },
+    "SubnetPrivate2": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "AwsMeetupVpc"
+        },
+        "CidrBlock": "10.0.2.0/24",
+        "AvailabilityZone": {
+          "Ref": "ParamAvailabilityZone2"
+        },
+        "Tags": [{
+          "Key": "Name",
+          "Value": "Seattle AWS Meetup Private Subnet 2"
+        }]
+      }
+    },
+    "PrivateRouteTable": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "AwsMeetupVpc"
+        },
+        "Tags": [{
+          "Key": "Name",
+          "Value": "Seattle AWS Meetup Private Route Table"
+        }]
+      }
+    },
+    "PrivateRoute": {
+      "Type": "AWS::EC2::Route",
+      "DependsOn": "InternetGateway",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "PrivateRouteTable"
+        },
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "InstanceId": {
+          "Ref": "NatInstance"
+        }
+      }
+    },
+    "PrivateRouteTableAssociation1": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "SubnetPrivate1"
+        },
+        "RouteTableId": {
+          "Ref": "PrivateRouteTable"
+        }
+      }
+    },
+    "PrivateRouteTableAssociation2": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "SubnetPrivate2"
+        },
+        "RouteTableId": {
+          "Ref": "PrivateRouteTable"
+        }
+      }
+    },
+    "WebServerSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Seattle AWS Meetup Web Server Security Group",
+        "VpcId": {
+          "Ref": "AwsMeetupVpc"
+        },
+        "SecurityGroupIngress": [{
+          "IpProtocol": "tcp",
+          "FromPort": "22",
+          "ToPort": "22",
+          "SourceSecurityGroupId": {
+            "Ref": "BastionSecurityGroup"
+          }
+        }, {
+          "IpProtocol": "tcp",
+          "FromPort": "80",
+          "ToPort": "80",
+          "SourceSecurityGroupId": {
+            "Ref": "ElbSecurityGroup"
+          }
+        }, {
+          "IpProtocol": "tcp",
+          "FromPort": "1024",
+          "ToPort": "65535",
+          "SourceSecurityGroupId": {
+            "Ref": "NatSecurityGroup"
+          }
+        }],
+        "Tags": [{
+          "Key": "Name",
+          "Value": "Seattle AWS Meetup Web Server Security Group"
+        }]
+      }
+    },
+    "ElbSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Seattle AWS Meetup ELB Security Group",
+        "VpcId": {
+          "Ref": "AwsMeetupVpc"
+        },
+        "SecurityGroupIngress": [{
+          "IpProtocol": "tcp",
+          "FromPort": "80",
+          "ToPort": "80",
+          "CidrIp": "0.0.0.0/0"
+        }, {
+          "IpProtocol": "tcp",
+          "FromPort": "1024",
+          "ToPort": "65355",
+          "CidrIp": "10.0.0.0/16"
+        }],
+        "Tags": [{
+          "Key": "Name",
+          "Value": "Seattle AWS Meetup ELB Security Group"
+        }]
+      }
+    },
+    "BastionSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Seattle AWS Meetup Bastion Security Group",
+        "VpcId": {
+          "Ref": "AwsMeetupVpc"
+        },
+        "SecurityGroupIngress": [{
+          "IpProtocol": "tcp",
+          "FromPort": "22",
+          "ToPort": "22",
+          "CidrIp": {
+            "Ref": "ParamSshCidr"
+          }
+        }],
+        "Tags": [{
+          "Key": "Name",
+          "Value": "Seattle AWS Meetup Bastion Security Group"
+        }]
+      }
+    },
+    "NatSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Rules for allowing access to HA Nodes",
+        "VpcId": {
+          "Ref": "AwsMeetupVpc"
+        },
+        "SecurityGroupIngress": [{
+          "IpProtocol": "tcp",
+          "FromPort": "22",
+          "ToPort": "22",
+          "CidrIp": "10.0.0.0/16"
+        }, {
+          "IpProtocol": "-1",
+          "FromPort": "0",
+          "ToPort": "65535",
+          "CidrIp": "10.0.0.0/16"
+        }],
+        "SecurityGroupEgress": [{
+          "IpProtocol": "-1",
+          "FromPort": "0",
+          "ToPort": "65535",
+          "CidrIp": "0.0.0.0/0"
+        }],
+        "Tags": [{
+          "Key": "Name",
+          "Value": "Seattle AWS Meetup Nat Security Group"
+        }]
+      }
+    },
+    "NatRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [{
+            "Effect": "Allow",
+            "Principal": {
+              "Service": ["ec2.amazonaws.com"]
+            },
+            "Action": ["sts:AssumeRole"]
+          }]
+        },
+        "Path": "/",
+        "Policies": [{
+          "PolicyName": "NAT_Takeover",
+          "PolicyDocument": {
+            "Statement": [{
+              "Effect": "Allow",
+              "Action": [
+                "ec2:DescribeInstances",
+                "ec2:DescribeRouteTables",
+                "ec2:CreateRoute",
+                "ec2:ReplaceRoute",
+                "ec2:StartInstances",
+                "ec2:StopInstances"
+              ],
+              "Resource": "*"
+            }]
+          }
+        }]
+      }
+    },
+    "NatRoleProfile": {
+      "Type": "AWS::IAM::InstanceProfile",
+      "Properties": {
+        "Path": "/",
+        "Roles": [{
+          "Ref": "NatRole"
+        }]
+      }
+    },
+    "NatEip": {
+      "Type": "AWS::EC2::EIP",
+      "Properties": {
+        "Domain": "vpc",
+        "InstanceId": {
+          "Ref": "NatInstance"
+        }
+      }
+    },
+    "NatInstance": {
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "InstanceType": "m1.small",
+        "KeyName": {
+          "Ref": "ParamKeyName"
+        },
+        "IamInstanceProfile": {
+          "Ref": "NatRoleProfile"
+        },
+        "SubnetId": {
+          "Ref": "SubnetPublic1"
+        },
+        "SourceDestCheck": "false",
+        "ImageId": {
+          "Fn::FindInMap": ["AwsNatAmiMap", {
+            "Ref": "AWS::Region"
+          }, "AMI"]
+        },
+        "SecurityGroupIds": [{
+          "Ref": "NatSecurityGroup"
+        }],
+        "Tags": [{
+          "Key": "Name",
+          "Value": "Seattle AWS Meetup NAT Instance"
+        }],
+        "UserData": {
+          "Fn::Base64": {
+            "Fn::Join": ["", [
+              "#!/bin/bash -v\n",
+              "yum update -y aws*\n",
+              ". /etc/profile.d/aws-apitools-common.sh\n",
+              "# Configure iptables\n",
+              "/sbin/iptables -t nat -A POSTROUTING -o eth0 -s 0.0.0.0/0 -j MASQUERADE\n",
+              "/sbin/iptables-save > /etc/sysconfig/iptables\n",
+              "# Configure ip forwarding and redirects\n",
+              "echo 1 >  /proc/sys/net/ipv4/ip_forward && echo 0 >  /proc/sys/net/ipv4/conf/eth0/send_redirects\n",
+              "mkdir -p /etc/sysctl.d/\n",
+              "cat <<EOF > /etc/sysctl.d/nat.conf\n",
+              "net.ipv4.ip_forward = 1\n",
+              "net.ipv4.conf.eth0.send_redirects = 0\n",
+              "EOF\n"
+            ]]
+          }
+        }
+      }
+    },
+    "LaunchConfig": {
+      "Type": "AWS::AutoScaling::LaunchConfiguration",
+      "Properties": {
+        "KeyName": {
+          "Ref": "ParamKeyName"
+        },
+        "ImageId": "ami-e7527ed7",
+        "SecurityGroups": [{
+          "Ref": "WebServerSecurityGroup"
+        }],
+        "InstanceType": "t2.micro",
+        "EbsOptimized": "false",
+        "UserData": {
+          "Fn::Base64": {
+            "Fn::Join": ["", [
+              "#!/bin/bash -e\n",
+              " yum install httpd \n",
+              " chkconfig httpd on \n",
+              " /etc/init.d/httpd start \n"
+            ]]
+          }
+        }
+      }
+    },
+    "WebAutoScalingGroup": {
+      "Type": "AWS::AutoScaling::AutoScalingGroup",
+      "Properties": {
+        "AvailabilityZones": [{
+          "Ref": "ParamAvailabilityZone1"
+        }, {
+          "Ref": "ParamAvailabilityZone2"
+        }],
+        "VPCZoneIdentifier": [{
+          "Ref": "SubnetPrivate1"
+        }, {
+          "Ref": "SubnetPrivate2"
+        }],
+        "LaunchConfigurationName": {
+          "Ref": "LaunchConfig"
+        },
+        "MinSize": "2",
+        "MaxSize": "2",
+        "LoadBalancerNames": [{
+          "Ref": "ElasticLoadBalancer"
+        }],
+        "MetricsCollection": [{
+          "Granularity": "1Minute",
+          "Metrics": [
+            "GroupMinSize",
+            "GroupMaxSize"
+          ]
+        }],
+        "Tags": [{
+          "Key": "Name",
+          "Value": "Seattle AWS Meetup Autoscaling Instance",
+          "PropagateAtLaunch": "true"
+        }]
+
+      }
+
+    },
+    "ElbLogBucket": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "BucketName": {"Ref": "LogBucketName" }
+      }
+    },
+    "ElbLogBucketPolicy": {
+      "Type": "AWS::S3::BucketPolicy",
+      "Properties": {
+        "Bucket": {
+          "Ref": "ElbLogBucket"
+        },
+        "PolicyDocument": {
+          "Id": "ElbLogBucketPolicy",
+          "Version": "2012-10-17",
+          "Statement": [{
+            "Sid": "uses-generic-ELB-arn",
+            "Action": [
+              "s3:PutObject"
+            ],
+            "Effect": "Allow",
+            "Resource": {
+              "Fn::Join": ["", [
+                "arn:aws:s3:::",
+                { "Ref": "LogBucketName" },
+                "/AWSLogs/",
+                { "Ref": "AWS::AccountId"},
+                "/*"
+              ]]
+            },
+            "Principal": {
+              "AWS": [
+                "797873946194"
+              ]
+            }
+          }]
+        }
+      }
+    },
+    "ElasticLoadBalancer": {
+      "Type": "AWS::ElasticLoadBalancing::LoadBalancer",
+      "Properties": {
+        "AccessLoggingPolicy": {
+          "EmitInterval": 5,
+          "Enabled": "true",
+          "S3BucketName": {
+            "Ref": "ElbLogBucket"
+          }
+        },
+        "Subnets": [{
+          "Ref": "SubnetPublic1"
+        }, {
+          "Ref": "SubnetPublic2"
+        }],
+        "SecurityGroups": [{
+          "Ref": "ElbSecurityGroup"
+        }],
+        "Listeners": [{
+          "LoadBalancerPort": "80",
+          "InstancePort": "80",
+          "Protocol": "HTTP"
+        }],
+        "HealthCheck": {
+          "Target": "HTTP:80/",
+          "HealthyThreshold": "3",
+          "UnhealthyThreshold": "5",
+          "Interval": "30",
+          "Timeout": "5"
+        },
+        "ConnectionDrainingPolicy": {
+          "Enabled": "true",
+          "Timeout": "60"
+        },
+        "Tags": [{
+          "Key": "Name",
+          "Value": "Seattle AWS Meetup ELB"
+        }]
+      }
+    },
+    "BastionInstance": {
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "ImageId": "ami-e7527ed7",
+        "KeyName": {
+          "Ref": "ParamKeyName"
+        },
+        "InstanceType": "t2.micro",
+        "SecurityGroupIds": [{
+          "Ref": "BastionSecurityGroup"
+        }],
+        "SubnetId": {
+          "Ref": "SubnetPublic1"
+        },
+        "Tags": [{
+          "Key": "Name",
+          "Value": "Seattle AWS Meetup Bastion Instance"
+        }]
+      }
+    },
+    "BastionEIP": {
+      "Type": "AWS::EC2::EIP",
+      "Properties": {
+        "InstanceId": {
+          "Ref": "BastionInstance"
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "VPC": {
+      "Description": "VPC",
+      "Value": {
+        "Ref": "AwsMeetupVpc"
+      }
+    },
+    "BastionInstance": {
+      "Description": "Bastion Instance ID",
+      "Value": {
+        "Ref": "BastionInstance"
+      }
+    },
+    "BastionEIP": {
+      "Description": "Bastion EIP",
+      "Value": {
+        "Ref": "BastionEIP"
+      }
+    },
+    "InternetGateway": {
+      "Description": "Internet Gateway",
+      "Value": {
+        "Ref": "InternetGateway"
+      }
+    }
   }
 }
