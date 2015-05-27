@@ -13,17 +13,17 @@
     "ParamAvailabilityZone1": {
       "Description": "Instance key name",
       "Type": "String",
-      "Default": "us-west-2a"
+      "Default": "us-west-1b"
     },
     "ParamAvailabilityZone2": {
       "Description": "Instance key name",
       "Type": "String",
-      "Default": "us-west-2b"
+      "Default": "us-west-1c"
     },
     "ParamSshCidr": {
       "Description": "SSH In CIDR",
       "Type": "String",
-      "Default": "70.199.140.28/32"
+      "Default": "0.0.0.0/0"
     },
     "LogBucketName": {
       "Description": "The name of the S3 bucket to create for log shipping",
@@ -32,30 +32,15 @@
     }
   },
   "Mappings": {
-    "AwsNatAmiMap": {
+    "AwsAmiMap": {
       "us-east-1": {
         "AMI": "ami-54cf5c3d"
       },
       "us-west-2": {
-        "AMI": "ami-8e27adbe"
+        "AMI": "ami-e7527ed7"
       },
       "us-west-1": {
-        "AMI": "ami-b63210f3"
-      },
-      "eu-west-1": {
-        "AMI": "ami-3c5f5748"
-      },
-      "ap-southeast-1": {
-        "AMI": "ami-ba7538e8"
-      },
-      "ap-southeast-2": {
-        "AMI": "ami-b6df4e8c"
-      },
-      "ap-northeast-1": {
-        "AMI": "ami-5d7dfa5c"
-      },
-      "sa-east-1": {
-        "AMI": "ami-89c81394"
+        "AMI": "ami-d114f295"
       }
     }
   },
@@ -90,6 +75,27 @@
         },
         "InternetGatewayId": {
           "Ref": "InternetGateway"
+        }
+      }
+    },
+    "SeaNacl": {
+      "Type": "AWS::EC2::NetworkAcl",
+      "Properties": {
+        "VpcId": {
+          "Ref": "AwsMeetupVpc"
+        }
+      }
+    },
+    "SeaNaclEntry": {
+      "Type": "AWS::EC2::NetworkAclEntry",
+      "Properties": {
+        "CidrBlock": "0.0.0.0/0",
+        "Egress": true,
+        "Protocol": "-1",
+        "RuleAction": "allow",
+        "RuleNumber": "100",
+        "NetworkAclId": {
+          "Ref": "SeaNacl"
         }
       }
     },
@@ -251,65 +257,6 @@
         }
       }
     },
-    "WebServerSecurityGroup": {
-      "Type": "AWS::EC2::SecurityGroup",
-      "Properties": {
-        "GroupDescription": "Seattle AWS Meetup Web Server Security Group",
-        "VpcId": {
-          "Ref": "AwsMeetupVpc"
-        },
-        "SecurityGroupIngress": [{
-          "IpProtocol": "tcp",
-          "FromPort": "22",
-          "ToPort": "22",
-          "SourceSecurityGroupId": {
-            "Ref": "BastionSecurityGroup"
-          }
-        }, {
-          "IpProtocol": "tcp",
-          "FromPort": "80",
-          "ToPort": "80",
-          "SourceSecurityGroupId": {
-            "Ref": "ElbSecurityGroup"
-          }
-        }, {
-          "IpProtocol": "tcp",
-          "FromPort": "1024",
-          "ToPort": "65535",
-          "SourceSecurityGroupId": {
-            "Ref": "NatSecurityGroup"
-          }
-        }],
-        "Tags": [{
-          "Key": "Name",
-          "Value": "Seattle AWS Meetup Web Server Security Group"
-        }]
-      }
-    },
-    "ElbSecurityGroup": {
-      "Type": "AWS::EC2::SecurityGroup",
-      "Properties": {
-        "GroupDescription": "Seattle AWS Meetup ELB Security Group",
-        "VpcId": {
-          "Ref": "AwsMeetupVpc"
-        },
-        "SecurityGroupIngress": [{
-          "IpProtocol": "tcp",
-          "FromPort": "80",
-          "ToPort": "80",
-          "CidrIp": "0.0.0.0/0"
-        }, {
-          "IpProtocol": "tcp",
-          "FromPort": "1024",
-          "ToPort": "65355",
-          "CidrIp": "10.0.0.0/16"
-        }],
-        "Tags": [{
-          "Key": "Name",
-          "Value": "Seattle AWS Meetup ELB Security Group"
-        }]
-      }
-    },
     "BastionSecurityGroup": {
       "Type": "AWS::EC2::SecurityGroup",
       "Properties": {
@@ -414,7 +361,7 @@
     "NatInstance": {
       "Type": "AWS::EC2::Instance",
       "Properties": {
-        "InstanceType": "m1.small",
+        "InstanceType": "t2.micro",
         "KeyName": {
           "Ref": "ParamKeyName"
         },
@@ -426,7 +373,7 @@
         },
         "SourceDestCheck": "false",
         "ImageId": {
-          "Fn::FindInMap": ["AwsNatAmiMap", {
+          "Fn::FindInMap": ["AwsAmiMap", {
             "Ref": "AWS::Region"
           }, "AMI"]
         },
@@ -458,150 +405,14 @@
         }
       }
     },
-    "LaunchConfig": {
-      "Type": "AWS::AutoScaling::LaunchConfiguration",
-      "Properties": {
-        "KeyName": {
-          "Ref": "ParamKeyName"
-        },
-        "ImageId": "ami-b63210f3",
-        "SecurityGroups": [{
-          "Ref": "WebServerSecurityGroup"
-        }],
-        "InstanceType": "t2.micro",
-        "EbsOptimized": "false",
-        "UserData": {
-          "Fn::Base64": {
-            "Fn::Join": ["", [
-              "#!/bin/bash -e\n",
-              " yum install httpd \n",
-              " chkconfig httpd on \n",
-              " /etc/init.d/httpd start \n"
-            ]]
-          }
-        }
-      }
-    },
-    "WebAutoScalingGroup": {
-      "Type": "AWS::AutoScaling::AutoScalingGroup",
-      "Properties": {
-        "AvailabilityZones": [{
-          "Ref": "ParamAvailabilityZone1"
-        }, {
-          "Ref": "ParamAvailabilityZone2"
-        }],
-        "VPCZoneIdentifier": [{
-          "Ref": "SubnetPrivate1"
-        }, {
-          "Ref": "SubnetPrivate2"
-        }],
-        "LaunchConfigurationName": {
-          "Ref": "LaunchConfig"
-        },
-        "MinSize": "2",
-        "MaxSize": "2",
-        "LoadBalancerNames": [{
-          "Ref": "ElasticLoadBalancer"
-        }],
-        "MetricsCollection": [{
-          "Granularity": "1Minute",
-          "Metrics": [
-            "GroupMinSize",
-            "GroupMaxSize"
-          ]
-        }],
-        "Tags": [{
-          "Key": "Name",
-          "Value": "Seattle AWS Meetup Autoscaling Instance",
-          "PropagateAtLaunch": "true"
-        }]
-
-      }
-
-    },
-    "ElbLogBucket": {
-      "Type": "AWS::S3::Bucket",
-      "Properties": {
-        "BucketName": {"Ref": "LogBucketName" }
-      }
-    },
-    "ElbLogBucketPolicy": {
-      "Type": "AWS::S3::BucketPolicy",
-      "Properties": {
-        "Bucket": {
-          "Ref": "ElbLogBucket"
-        },
-        "PolicyDocument": {
-          "Id": "ElbLogBucketPolicy",
-          "Version": "2012-10-17",
-          "Statement": [{
-            "Sid": "uses-generic-ELB-arn",
-            "Action": [
-              "s3:PutObject"
-            ],
-            "Effect": "Allow",
-            "Resource": {
-              "Fn::Join": ["", [
-                "arn:aws:s3:::",
-                { "Ref": "LogBucketName" },
-                "/AWSLogs/",
-                { "Ref": "AWS::AccountId"},
-                "/*"
-              ]]
-            },
-            "Principal": {
-              "AWS": [
-                "797873946194"
-              ]
-            }
-          }]
-        }
-      }
-    },
-    "ElasticLoadBalancer": {
-      "Type": "AWS::ElasticLoadBalancing::LoadBalancer",
-      "Properties": {
-        "AccessLoggingPolicy": {
-          "EmitInterval": 5,
-          "Enabled": "true",
-          "S3BucketName": {
-            "Ref": "ElbLogBucket"
-          }
-        },
-        "Subnets": [{
-          "Ref": "SubnetPublic1"
-        }, {
-          "Ref": "SubnetPublic2"
-        }],
-        "SecurityGroups": [{
-          "Ref": "ElbSecurityGroup"
-        }],
-        "Listeners": [{
-          "LoadBalancerPort": "80",
-          "InstancePort": "80",
-          "Protocol": "HTTP"
-        }],
-        "HealthCheck": {
-          "Target": "HTTP:80/",
-          "HealthyThreshold": "3",
-          "UnhealthyThreshold": "5",
-          "Interval": "30",
-          "Timeout": "5"
-        },
-        "ConnectionDrainingPolicy": {
-          "Enabled": "true",
-          "Timeout": "60"
-        },
-        "Tags": [{
-          "Key": "Name",
-          "Value": "Seattle AWS Meetup ELB"
-        }]
-      }
-    },
     "BastionInstance": {
       "Type": "AWS::EC2::Instance",
       "Properties": {
-        "ImageId": "ami-b63210f3",
+        "ImageId": {
+          "Fn::FindInMap": ["AwsAmiMap", {
+            "Ref": "AWS::Region"
+          }, "AMI"]
+        },
         "KeyName": {
           "Ref": "ParamKeyName"
         },
