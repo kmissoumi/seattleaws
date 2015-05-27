@@ -464,7 +464,7 @@
         "KeyName": {
           "Ref": "ParamKeyName"
         },
-        "ImageId": "ami-e7527ed7",
+        "ImageId": "ami-b63210f3",
         "SecurityGroups": [{
           "Ref": "WebServerSecurityGroup"
         }],
@@ -601,7 +601,7 @@
     "BastionInstance": {
       "Type": "AWS::EC2::Instance",
       "Properties": {
-        "ImageId": "ami-e7527ed7",
+        "ImageId": "ami-b63210f3",
         "KeyName": {
           "Ref": "ParamKeyName"
         },
