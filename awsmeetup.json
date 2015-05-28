@@ -28,7 +28,7 @@
     "LogBucketName": {
       "Description": "The name of the S3 bucket to create for log shipping",
       "Type": "String",
-      "Default": "seattle-aws-logs"
+      "Default": ""
     }
   },
   "Mappings": {
@@ -55,6 +55,89 @@
         "Tags": [{
           "Key": "Name",
           "Value": "Seattle AWS Meetup VPC"
+        }]
+      }
+    },
+    "ElbSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Seattle AWS Meetup ELB Security Group",
+        "VpcId": {
+          "Ref": "AwsMeetupVpc"
+        },
+        "SecurityGroupIngress": [{
+          "IpProtocol": "tcp",
+          "FromPort": "80",
+          "ToPort": "80",
+          "CidrIp": "0.0.0.0/0"
+        }, {
+          "IpProtocol": "tcp",
+          "FromPort": "1024",
+          "ToPort": "65355",
+          "CidrIp": "10.0.0.0/16"
+        }],
+        "Tags": [{
+          "Key": "Name",
+          "Value": "Seattle AWS Meetup ELB Security Group"
+        }]
+      }
+    },
+    "LaunchConfig": {
+      "Type": "AWS::AutoScaling::LaunchConfiguration",
+      "Properties": {
+        "KeyName": {
+          "Ref": "ParamKeyName"
+        },
+        "ImageId": "ami-b63210f3",
+        "SecurityGroups": [{
+          "Ref": "WebServerSecurityGroup"
+        }],
+        "InstanceType": "t2.micro",
+        "EbsOptimized": "false",
+        "UserData": {
+          "Fn::Base64": {
+            "Fn::Join": ["", [
+              "#!/bin/bash -e\n",
+              " yum install httpd \n",
+              " chkconfig httpd on \n",
+              " /etc/init.d/httpd start \n"
+            ]]
+          }
+        }
+      }
+    },
+    "WebServerSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Seattle AWS Meetup Web Server Security Group",
+        "VpcId": {
+          "Ref": "AwsMeetupVpc"
+        },
+        "SecurityGroupIngress": [{
+          "IpProtocol": "tcp",
+          "FromPort": "22",
+          "ToPort": "22",
+          "SourceSecurityGroupId": {
+            "Ref": "BastionSecurityGroup"
+          }
+        }, {
+          "IpProtocol": "tcp",
+          "FromPort": "80",
+          "ToPort": "80",
+          "SourceSecurityGroupId": {
+            "Ref": "ElbSecurityGroup"
+          }
+        }, {
+          "IpProtocol": "tcp",
+          "FromPort": "1024",
+          "ToPort": "65535",
+          "SourceSecurityGroupId": {
+            "Ref": "NatSecurityGroup"
+          }
+        }],
+        "Tags": [{
+          "Key": "Name",
+          "Value": "Seattle AWS Meetup Web Server Security Group"
         }]
       }
     },
@@ -443,7 +526,11 @@
         "KeyName": {
           "Ref": "ParamKeyName"
         },
-        "ImageId": "ami-b63210f3",
+        "ImageId": {
+          "Fn::FindInMap": ["AwsAmiMap", {
+            "Ref": "AWS::Region"
+          }, "AMI"]
+        },
         "SecurityGroups": [{
           "Ref": "WebServerSecurityGroup"
         }],
@@ -477,23 +564,14 @@
         "LaunchConfigurationName": {
           "Ref": "LaunchConfig"
         },
-        "MinSize": "2",
-        "MaxSize": "2",
-        "MetricsCollection": [{
-          "Granularity": "1Minute",
-          "Metrics": [
-            "GroupMinSize",
-            "GroupMaxSize"
-          ]
-        }],
+        "MinSize": "1",
+        "MaxSize": "1",
         "Tags": [{
           "Key": "Name",
           "Value": "Seattle AWS Meetup Autoscaling Instance",
           "PropagateAtLaunch": "true"
         }]
-
       }
-
     },
     "WebServerSecurityGroup": {
       "Type": "AWS::EC2::SecurityGroup",
@@ -502,7 +580,6 @@
         "VpcId": {
           "Ref": "AwsMeetupVpc"
         },
-
         "SecurityGroupIngress": [{
           "IpProtocol": "tcp",
           "FromPort": "22",
@@ -530,56 +607,75 @@
           "Value": "Seattle AWS Meetup Web Server Security Group"
         }]
       }
-    }
-  },
-  "ElbSecurityGroup": {
-    "Type": "AWS::EC2::SecurityGroup",
-    "Properties": {
-      "GroupDescription": "Seattle AWS Meetup ELB Security Group",
-      "VpcId": {
-        "Ref": "AwsMeetupVpc"
-      },
-      "SecurityGroupIngress": [{
-        "IpProtocol": "tcp",
-        "FromPort": "80",
-        "ToPort": "80",
-        "CidrIp": "0.0.0.0/0"
-      }, {
-        "IpProtocol": "tcp",
-        "FromPort": "1024",
-        "ToPort": "65355",
-        "CidrIp": "10.0.0.0/16"
-      }],
-      "Tags": [{
-        "Key": "Name",
-        "Value": "Seattle AWS Meetup ELB Security Group"
-      }]
-    }
-  },
+    },
+    "ElbSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Seattle AWS Meetup ELB Security Group",
+        "VpcId": {
+          "Ref": "AwsMeetupVpc"
+        },
+        "SecurityGroupIngress": [{
+          "IpProtocol": "tcp",
+          "FromPort": "80",
+          "ToPort": "80",
+          "CidrIp": "0.0.0.0/0"
+        }, {
+          "IpProtocol": "tcp",
+          "FromPort": "1024",
+          "ToPort": "65355",
+          "CidrIp": "10.0.0.0/16"
+        }],
+        "Tags": [{
+          "Key": "Name",
+          "Value": "Seattle AWS Meetup ELB Security Group"
+        }]
+      }
+    },
+    "WebAutoScalingGroup": {
+      "Type": "AWS::AutoScaling::AutoScalingGroup",
+      "Properties": {
+        "AvailabilityZones": [{
+          "Ref": "ParamAvailabilityZone1"
+        }, {
+          "Ref": "ParamAvailabilityZone2"
+        }],
+        "VPCZoneIdentifier": [{
+          "Ref": "SubnetPrivate1"
+        }, {
+          "Ref": "SubnetPrivate2"
+        }],
+        "LaunchConfigurationName": {
+          "Ref": "LaunchConfig"
+        },
+        "MinSize": "2",
+        "MaxSize": "2",
+        "Tags": [{
+          "Key": "Name",
+          "Value": "Seattle AWS Meetup Autoscaling Instance",
+          "PropagateAtLaunch": "true"
+        }]
+      }
+    },
   "Outputs": {
-    "VPC": {
-      "Description": "VPC",
-      "Value": {
-        "Ref": "AwsMeetupVpc"
+      "AwsMeetupVpc": { "Description": "This is our VPC", "Value": { "Ref": "AwsMeetupVpc" } },
+      "BastionInstance": {
+        "Description": "Bastion Instance ID",
+        "Value": {
+          "Ref": "BastionInstance"
+        }
+      },
+      "BastionEIP": {
+        "Description": "Bastion EIP",
+        "Value": {
+          "Ref": "BastionEIP"
+        }
+      },
+      "InternetGateway": {
+        "Description": "Internet Gateway",
+        "Value": {
+          "Ref": "InternetGateway"
+        }
       }
-    },
-    "BastionInstance": {
-      "Description": "Bastion Instance ID",
-      "Value": {
-        "Ref": "BastionInstance"
-      }
-    },
-    "BastionEIP": {
-      "Description": "Bastion EIP",
-      "Value": {
-        "Ref": "BastionEIP"
-      }
-    },
-    "InternetGateway": {
-      "Description": "Internet Gateway",
-      "Value": {
-        "Ref": "InternetGateway"
-      }
-    }
   }
 }

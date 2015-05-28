@@ -1,0 +1,129 @@
+
+"ElbLogBucket": {
+  "Type": "AWS::S3::Bucket",
+  "Properties": {
+    "BucketName": {"Ref": "LogBucketName" }
+  }
+},
+"ElbLogBucketPolicy": {
+  "Type": "AWS::S3::BucketPolicy",
+  "Properties": {
+    "Bucket": {
+      "Ref": "ElbLogBucket"
+    },
+    "PolicyDocument": {
+      "Id": "ElbLogBucketPolicy",
+      "Version": "2012-10-17",
+      "Statement": [{
+        "Sid": "uses-generic-ELB-arn",
+        "Action": [
+          "s3:PutObject"
+        ],
+        "Effect": "Allow",
+        "Resource": {
+          "Fn::Join": ["", [
+            "arn:aws:s3:::",
+            { "Ref": "LogBucketName" },
+            "/AWSLogs/",
+            { "Ref": "AWS::AccountId"},
+            "/*"
+          ]]
+        },
+        "Principal": {
+          "AWS": [
+            "797873946194"
+          ]
+        }
+      }]
+    }
+  }
+},
+"ElasticLoadBalancer": {
+  "Type": "AWS::ElasticLoadBalancing::LoadBalancer",
+  "Properties": {
+    "AccessLoggingPolicy": {
+      "EmitInterval": 5,
+      "Enabled": "true",
+      "S3BucketName": {
+        "Ref": "ElbLogBucket"
+      }
+    },
+    "Subnets": [{
+      "Ref": "SubnetPublic1"
+    }, {
+      "Ref": "SubnetPublic2"
+    }],
+    "SecurityGroups": [{
+      "Ref": "ElbSecurityGroup"
+    }],
+    "Listeners": [{
+      "LoadBalancerPort": "80",
+      "InstancePort": "80",
+      "Protocol": "HTTP"
+    }],
+    "HealthCheck": {
+      "Target": "HTTP:80/",
+      "HealthyThreshold": "3",
+      "UnhealthyThreshold": "5",
+      "Interval": "30",
+      "Timeout": "5"
+    },
+    "ConnectionDrainingPolicy": {
+      "Enabled": "true",
+      "Timeout": "60"
+    },
+    "Tags": [{
+      "Key": "Name",
+      "Value": "Seattle AWS Meetup ELB"
+    }]
+  }
+},
+
+"SubnetPublic2": {
+  "Type": "AWS::EC2::Subnet",
+  "Properties": {
+    "VpcId": {
+      "Ref": "AwsMeetupVpc"
+    },
+    "CidrBlock": "10.0.4.0/24",
+    "AvailabilityZone": {
+      "Ref": "ParamAvailabilityZone2"
+    },
+    "Tags": [{
+      "Key": "Name",
+      "Value": "Seattle AWS Meetup Public Subnet 2"
+    }]
+  }
+},
+
+"SubnetPrivate2": {
+  "Type": "AWS::EC2::Subnet",
+  "Properties": {
+    "VpcId": {
+      "Ref": "AwsMeetupVpc"
+    },
+    "CidrBlock": "10.0.2.0/24",
+    "AvailabilityZone": {
+      "Ref": "ParamAvailabilityZone2"
+    },
+    "Tags": [{
+      "Key": "Name",
+      "Value": "Seattle AWS Meetup Private Subnet 2"
+    }]
+  }
+},
+
+
+
+
+"PrivateRouteTableAssociation2": {
+  "Type": "AWS::EC2::SubnetRouteTableAssociation",
+  "Properties": {
+    "SubnetId": {
+      "Ref": "SubnetPrivate2"
+    },
+    "RouteTableId": {
+      "Ref": "PrivateRouteTable"
+    }
+  }
+},
